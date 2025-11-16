@@ -1,0 +1,136 @@
+/* src/styles/InvoiceList.css */
+.invoice-list {
+  margin-top: 2rem;
+}
+
+.invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.invoice-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.invoice-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.invoice-header h3 {
+  color: #333;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-overdue {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.invoice-details {
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.detail-row span:first-child {
+  color: #666;
+  font-weight: 500;
+}
+
+.invoice-total {
+  font-weight: 600;
+  color: #007bff;
+  font-size: 1rem;
+}
+
+.invoice-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-edit {
+  background: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.btn-edit:hover {
+  background: #e0a800;
+}
+
+.btn-delete {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.btn-delete:hover {
+  background: #c82333;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.empty-state h3 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .invoice-grid {
+    grid-template-columns: 1fr;
+  }
+}
