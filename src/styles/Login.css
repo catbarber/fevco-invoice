@@ -9,7 +9,7 @@
 }
 
 .login-card {
-  background: white;
+  background: linear-gradient(135deg, #764ba2 0%,  #667eea 100%);
   padding: 2.5rem;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -19,13 +19,13 @@
 }
 
 .login-header h1 {
-  color: #333;
+  color: #fff;
   margin-bottom: 0.5rem;
   font-size: 1.8rem;
 }
 
 .login-header p {
-  color: #666;
+  color: #fff;
   margin-bottom: 2rem;
 }
 
@@ -47,8 +47,9 @@
 }
 
 .google-signin-btn:hover {
-  border-color: #007bff;
-  background: #f8f9fa;
+  border-color: #E6E6FA;
+  background: #E6E6FA;
+  color:#333;
 }
 
 .google-icon {
@@ -63,6 +64,6 @@
 }
 
 .login-footer p {
-  color: #888;
+  color: #fff;
   font-size: 0.85rem;
 }

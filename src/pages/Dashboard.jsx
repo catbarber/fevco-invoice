@@ -199,7 +199,7 @@ const Dashboard = () => {
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-title">
-            <h1>📊 Invoice Manager</h1>
+            <h1>📊 Simple Invoicing</h1>
             <p>Manage your invoices efficiently</p>
           </div>
           <div className="user-info">

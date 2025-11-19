@@ -18,7 +18,7 @@ const Login = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Invoice App</h1>
+          <h1>Simple Invoicing</h1>
           <p>Manage your invoices efficiently</p>
         </div>
         
@@ -39,6 +39,7 @@ const Login = () => {
 
         <div className="login-footer">
           <p>Secure authentication powered by Firebase</p>
+          <p>A Fevco product.</p>
         </div>
       </div>
     </div>
