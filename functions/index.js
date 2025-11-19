@@ -1,5 +1,6 @@
 // functions/index.js
 const { onCall, onRequest } = require('firebase-functions/v2/https');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -200,30 +201,6 @@ exports.sendInvoiceEmail = onCall({
     }
 
     throw new Error(error.message);
-  }
-});
-
-// Add a test function to verify configuration
-exports.testEmailConfig = onCall(async (request) => {
-  console.log('🧪 Testing email configuration...');
-  
-  try {
-    const transporter = createTransporter();
-    await transporter.verify();
-    
-    return {
-      success: true,
-      message: '✅ Email configuration is working! Real emails will be sent.',
-      hasGmailConfig: true,
-      email: process.env.GMAIL_EMAIL ? `${process.env.GMAIL_EMAIL.substring(0, 3)}...` : 'missing'
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `❌ Email configuration failed: ${error.message}`,
-      hasGmailConfig: false,
-      error: error.message
-    };
   }
 });
 
@@ -551,15 +528,365 @@ Thank you for your business!
   `.trim();
 }
 
-// Health check
-exports.healthCheck = onRequest((req, res) => {
-  const hasGmailConfig = !!(process.env.GMAIL_EMAIL && process.env.GMAIL_PASSWORD);
+// Function to send new user notification
+const sendNewUserNotification = async (userData) => {
+  console.log('📧 Sending new user notification for:', userData.email);
   
-  res.json({ 
-    status: 'healthy',
-    production: true,
-    hasGmailConfig: hasGmailConfig,
-    timestamp: new Date().toISOString(),
-    message: hasGmailConfig ? '✅ Production email system ready - REAL EMAILS' : '❌ Gmail configuration required'
-  });
+  const transporter = createTransporter();
+  
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New User Registered</title>
+      <style>
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          line-height: 1.6; 
+          color: #333; 
+          margin: 0;
+          padding: 0;
+          background: #f8f9fa;
+        }
+        .container { 
+          max-width: 600px; 
+          margin: 0 auto; 
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+        .header { 
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+          color: white; 
+          padding: 30px; 
+          text-align: center; 
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 700;
+        }
+        .content { 
+          padding: 30px; 
+        }
+        .user-info {
+          background: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+          border-left: 4px solid #28a745;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+          margin-top: 15px;
+        }
+        .info-item {
+          padding: 10px;
+          background: white;
+          border-radius: 6px;
+          border: 1px solid #e9ecef;
+        }
+        .label {
+          font-weight: 600;
+          color: #495057;
+          font-size: 14px;
+        }
+        .value {
+          color: #212529;
+          margin-top: 5px;
+        }
+        .footer { 
+          text-align: center; 
+          margin-top: 30px; 
+          color: #6c757d; 
+          font-size: 14px; 
+          padding: 20px;
+          background: #f8f9fa;
+          border-top: 1px solid #e9ecef;
+        }
+        .badge {
+          display: inline-block;
+          padding: 4px 12px;
+          background: #28a745;
+          color: white;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-left: 10px;
+        }
+        @media (max-width: 600px) {
+          .info-grid {
+            grid-template-columns: 1fr;
+          }
+          .content {
+            padding: 20px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 New User Registered</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">A new user has signed up for Invoice App</p>
+        </div>
+        
+        <div class="content">
+          <div class="user-info">
+            <h3 style="margin: 0 0 15px 0; color: #28a745;">
+              User Details
+              ${userData.isAdmin ? '<span class="badge">ADMIN</span>' : ''}
+            </h3>
+            
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="label">👤 Name</div>
+                <div class="value">${userData.displayName || 'Not provided'}</div>
+              </div>
+              
+              <div class="info-item">
+                <div class="label">📧 Email</div>
+                <div class="value">${userData.email}</div>
+              </div>
+              
+              <div class="info-item">
+                <div class="label">🆔 User ID</div>
+                <div class="value" style="font-family: monospace; font-size: 12px;">${userData.userId}</div>
+              </div>
+              
+              <div class="info-item">
+                <div class="label">📅 Registered</div>
+                <div class="value">${new Date(userData.createdAt?.toDate() || new Date()).toLocaleString()}</div>
+              </div>
+              
+              <div class="info-item">
+                <div class="label">👑 Role</div>
+                <div class="value">${userData.role || 'user'}</div>
+              </div>
+              
+              <div class="info-item">
+                <div class="label">✅ Status</div>
+                <div class="value">Active</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+            <h4 style="margin: 0 0 10px 0; color: #0056b3;">Quick Actions</h4>
+            <p style="margin: 0; color: #0056b3;">
+              • View user in Firebase Console<br>
+              • Check user permissions<br>
+              • Monitor user activity
+            </p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://console.firebase.google.com/project/feveck-invoice/firestore/data/~2Fusers~2F${userData.userId}" 
+               style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); 
+                      color: white; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      border-radius: 6px; 
+                      display: inline-block; 
+                      font-weight: 600;
+                      box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);">
+              🔍 View User in Firebase Console
+            </a>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p style="margin: 0 0 10px 0;">
+            This notification was sent from <strong>Invoice App</strong>
+          </p>
+          <p style="margin: 0; font-size: 13px; color: #868e96;">
+            User registered on: ${new Date().toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textVersion = `
+NEW USER REGISTERED - INVOICE APP
+==================================
+
+A new user has signed up for your Invoice App:
+
+👤 Name: ${userData.displayName || 'Not provided'}
+📧 Email: ${userData.email}
+🆔 User ID: ${userData.userId}
+📅 Registered: ${new Date(userData.createdAt?.toDate() || new Date()).toLocaleString()}
+👑 Role: ${userData.role || 'user'}
+${userData.isAdmin ? '⭐ Status: ADMIN USER' : ''}
+
+Quick Actions:
+• View user: https://console.firebase.google.com/project/feveck-invoice/firestore/data/~2Fusers~2F${userData.userId}
+• Check user permissions in Firebase Console
+
+This notification was sent automatically from your Invoice App.
+==================================
+  `.trim();
+
+  const mailOptions = {
+    from: `"Invoice App Notifications" <${process.env.GMAIL_EMAIL}>`,
+    to: 'christopher.feveck@gmail.com', // Your notification email
+    subject: `🎉 New User Registered: ${userData.displayName || userData.email}`,
+    html: emailHtml,
+    text: textVersion,
+    headers: {
+      'X-Priority': '1',
+      'X-MSMail-Priority': 'High',
+      'Importance': 'high'
+    }
+  };
+
+  try {
+    const emailResult = await transporter.sendMail(mailOptions);
+    console.log('✅ New user notification sent:', emailResult.messageId);
+    
+    // Log the notification
+    await db.collection('adminNotifications').add({
+      type: 'new_user_registered',
+      userId: userData.userId,
+      userEmail: userData.email,
+      userName: userData.displayName,
+      notificationSent: true,
+      messageId: emailResult.messageId,
+      sentTo: 'christopher.feveck@gmail.com',
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    return emailResult;
+  } catch (error) {
+    console.error('❌ Failed to send new user notification:', error);
+    
+    // Log the failure
+    await db.collection('adminNotifications').add({
+      type: 'new_user_registered',
+      userId: userData.userId,
+      userEmail: userData.email,
+      userName: userData.displayName,
+      notificationSent: false,
+      error: error.message,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    throw error;
+  }
+};
+
+// NEW FUNCTION NAMES - Firestore Trigger: Send email when new user is added to users collection
+exports.notifyNewUserCreated = onDocumentCreated('users/{userId}', async (event) => {
+  console.log('🔔 New user document created trigger - notifyNewUserCreated');
+  
+  try {
+    const userData = event.data.data();
+    const userId = event.params.userId;
+
+    console.log('New user data:', {
+      userId: userId,
+      email: userData.email,
+      displayName: userData.displayName,
+      isAdmin: userData.isAdmin
+    });
+
+    // Send notification email
+    await sendNewUserNotification({
+      userId: userId,
+      ...userData
+    });
+
+    console.log('✅ New user notification processed successfully');
+
+  } catch (error) {
+    console.error('❌ Error in new user trigger:', error);
+  }
 });
+
+// NEW FUNCTION NAMES - Firestore Trigger: Also trigger when new user is added to userRoles collection
+exports.notifyNewUserRoleCreated = onDocumentCreated('userRoles/{userId}', async (event) => {
+  console.log('🔔 New user role document created trigger - notifyNewUserRoleCreated');
+  
+  try {
+    const userRoleData = event.data.data();
+    const userId = event.params.userId;
+
+    console.log('New user role data:', {
+      userId: userId,
+      email: userRoleData.email,
+      role: userRoleData.role,
+      isAdmin: userRoleData.isAdmin
+    });
+
+    // Get additional user data from users collection
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // Send notification email with combined data
+    await sendNewUserNotification({
+      userId: userId,
+      ...userRoleData,
+      ...userData
+    });
+
+    console.log('✅ New user role notification processed successfully');
+
+  } catch (error) {
+    console.error('❌ Error in new user role trigger:', error);
+  }
+});
+
+// Function to get notification statistics
+exports.getNotificationStats = onCall(async (request) => {
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+
+  try {
+    // Check if user is admin
+    const userRoleDoc = await db.collection('userRoles').doc(request.auth.uid).get();
+    const userRole = userRoleDoc.exists ? userRoleDoc.data() : null;
+    
+    if (!userRole?.isAdmin && userRole?.role !== 'admin') {
+      throw new Error('Admin access required');
+    }
+
+    // Get notification statistics
+    const notificationsSnapshot = await db.collection('adminNotifications')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+
+    const notifications = notificationsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp?.toDate?.()?.toISOString() || doc.data().timestamp
+    }));
+
+    // Get user count
+    const usersSnapshot = await db.collection('users').get();
+    const userRolesSnapshot = await db.collection('userRoles').get();
+
+    return {
+      success: true,
+      stats: {
+        totalUsers: usersSnapshot.size,
+        totalUserRoles: userRolesSnapshot.size,
+        totalNotifications: notifications.length,
+        recentNotifications: notifications.slice(0, 10)
+      },
+      notifications: notifications
+    };
+  } catch (error) {
+    console.error('Error getting notification stats:', error);
+    throw new Error(error.message);
+  }
+});
+
