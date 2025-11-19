@@ -1,54 +1,103 @@
-/* src/styles/InvoiceForm.css */
+/* Enhanced InvoiceForm.css */
 .invoice-form-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   z-index: 1000;
+  backdrop-filter: blur(5px);
 }
 
 .invoice-form {
   background: white;
-  border-radius: 8px;
-  padding: 2rem;
+  border-radius: 12px;
   width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
+  max-width: 900px;
+  max-height: 95vh;
   overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
 }
 
-.invoice-form h2 {
-  margin-bottom: 1.5rem;
-  color: #333;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 0.5rem;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 2px solid #f0f0f0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: white;
+  padding: 0.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.invoice-form-content {
+  padding: 0;
 }
 
 .form-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background: #fafafa;
+  padding: 2rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.form-section:last-child {
+  border-bottom: none;
 }
 
 .form-section h3 {
-  margin-bottom: 1rem;
-  color: #555;
+  margin-bottom: 1.5rem;
+  color: #333;
   font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 1rem;
 }
 
@@ -59,101 +108,191 @@
 
 .form-group label {
   margin-bottom: 0.5rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #555;
+  font-size: 0.9rem;
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   font-size: 0.9rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  background: white;
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-group input.error,
+.form-group textarea.error {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 .invoice-item {
-  background: white;
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
   margin-bottom: 1rem;
+  border: 1px solid #e9ecef;
 }
 
-.item-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
-  gap: 1rem;
-  align-items: end;
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.item-header span {
+  font-weight: 600;
+  color: #495057;
 }
 
 .remove-item-btn {
   background: #dc3545;
   color: white;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 1.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s;
 }
 
-.remove-item-btn:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.remove-item-btn:not(:disabled):hover {
+.remove-item-btn:hover {
   background: #c82333;
 }
 
+.item-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+
 .item-total {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px dashed #e0e0e0;
-  font-weight: 500;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px dashed #dee2e6;
+  font-weight: 600;
   color: #007bff;
+  text-align: right;
 }
 
 .add-item-btn {
   background: #28a745;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+  margin-top: 1rem;
 }
 
 .add-item-btn:hover {
   background: #218838;
 }
 
-.total-display {
-  text-align: right;
+.totals-grid {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 2px solid #f8f9fa;
+  margin-bottom: 1.5rem;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.total-row:last-child {
+  border-bottom: none;
+}
+
+.total-row.grand-total {
   font-size: 1.2rem;
-  color: #28a745;
+  font-weight: bold;
+  color: #007bff;
+  border-top: 2px solid #007bff;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+.form-group.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.discount-amount {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.tax-amount {
+  color: #6f42c1;
+  font-weight: 600;
 }
 
 .form-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  padding: 2rem;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  border-radius: 0 0 12px 12px;
 }
 
+.btn-primary:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+  background: #6c757d;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
+  .invoice-form {
+    margin: 0;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
   .form-row {
     grid-template-columns: 1fr;
   }
@@ -163,7 +302,11 @@
     gap: 0.5rem;
   }
   
-  .remove-item-btn {
-    justify-self: start;
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-section {
+    padding: 1.5rem 1rem;
   }
 }

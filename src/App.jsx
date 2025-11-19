@@ -23,7 +23,8 @@ function App() {
     <div className="app">
       {user ? (
         <>
-          {isAdmin() ? <SuperAdminDashboard /> : <Dashboard />}
+          {/* {isAdmin() ? <SuperAdminDashboard /> : <Dashboard />} */}
+          <Dashboard />
           <AdminBadge />
         </>
       ) : (
