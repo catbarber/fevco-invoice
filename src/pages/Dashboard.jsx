@@ -200,7 +200,9 @@ const Dashboard = () => {
         <div className="header-content">
           <div className="header-title">
             <h1>📊 Simple Invoicing</h1>
+            <p>A Fevco product</p>
             <p>Manage your invoices efficiently</p>
+            
           </div>
           <div className="user-info">
             <img
