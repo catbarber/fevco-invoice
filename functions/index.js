@@ -114,7 +114,7 @@ exports.sendInvoiceEmail = onCall({
     const textVersion = generateTextVersion(invoice, message);
 
     const mailOptions = {
-      from: `"Invoice App" <${process.env.GMAIL_EMAIL}>`,
+      from: `"Simple Invoicing - A Fevco product" <${process.env.GMAIL_EMAIL}>`,
       to: clientEmail,
       subject: subject || `Invoice #${invoice.invoiceNumber || invoiceId.slice(-8)} from ${invoice.companyName || 'Your Company'}`,
       html: emailHtml,
@@ -468,7 +468,7 @@ function generateProfessionalEmail(invoice, customMessage) {
     
     <div class="footer">
       <p style="margin: 0 0 10px 0;">
-        This invoice was sent via <strong style="color: #495057;">Invoice App</strong>
+        This invoice was sent via <strong style="color: #495057;">Simple Invoicing - A Fevco product</strong>
       </p>
       <p style="margin: 0; font-size: 13px; color: #868e96;">
         If you have any questions about this invoice, please contact ${invoice.companyEmail || 'the sender'}.
@@ -633,7 +633,7 @@ const sendNewUserNotification = async (userData) => {
       <div class="container">
         <div class="header">
           <h1>🎉 New User Registered</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">A new user has signed up for Invoice App</p>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">A new user has signed up for Simple Invoicing - A Fevco product</p>
         </div>
         
         <div class="content">
@@ -702,7 +702,7 @@ const sendNewUserNotification = async (userData) => {
         
         <div class="footer">
           <p style="margin: 0 0 10px 0;">
-            This notification was sent from <strong>Invoice App</strong>
+            This notification was sent from <strong>Simple Invoicing - A Fevco product</strong>
           </p>
           <p style="margin: 0; font-size: 13px; color: #868e96;">
             User registered on: ${new Date().toLocaleString()}
@@ -714,10 +714,10 @@ const sendNewUserNotification = async (userData) => {
   `;
 
   const textVersion = `
-NEW USER REGISTERED - INVOICE APP
+NEW USER REGISTERED - Simple Invoicing - A Fevco product
 ==================================
 
-A new user has signed up for your Invoice App:
+A new user has signed up for your Simple Invoicing - A Fevco product:
 
 👤 Name: ${userData.displayName || 'Not provided'}
 📧 Email: ${userData.email}
@@ -730,12 +730,12 @@ Quick Actions:
 • View user: https://console.firebase.google.com/project/feveck-invoice/firestore/data/~2Fusers~2F${userData.userId}
 • Check user permissions in Firebase Console
 
-This notification was sent automatically from your Invoice App.
+This notification was sent automatically from your Simple Invoicing - A Fevco product.
 ==================================
   `.trim();
 
   const mailOptions = {
-    from: `"Invoice App Notifications" <${process.env.GMAIL_EMAIL}>`,
+    from: `"Simple Invoicing - A Fevco product [Notifications]" <${process.env.GMAIL_EMAIL}>`,
     to: 'christopher.feveck@gmail.com', // Your notification email
     subject: `🎉 New User Registered: ${userData.displayName || userData.email}`,
     html: emailHtml,
