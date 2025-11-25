@@ -19,7 +19,7 @@ const AdComponent = () => {
       title: "The Voyages of Victoria: Novel Series",
       description: "Embark on a thrilling adventure with Captain Bartley and his eclectic crew.",
       image: "/voyages1.png",
-      link: "https://voyagesofvictora-6da32.web.app/",
+      link: "https://voyagesofvictora.com/",
       cta: "Read More"
     }
   ];

@@ -16,10 +16,7 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div style={{width:"35%", display:"flex", justifyContent:"center", alignContent:"center", transform:"translateX(-50%)" }}>
-        <AdComponent />
-      </div>
+    <div className="login-container">   
       <div className="login-card">
         <h1 className="login-title">Simply Invoicing</h1>
         <p className="login-subtitle">Manage your invoices efficiently</p>

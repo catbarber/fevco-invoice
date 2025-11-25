@@ -86,7 +86,7 @@ const Dashboard = () => {
         {activeView === 'admin' && <Admin />}
       </main>
 
-      <div style={{width:"40%", display:"flex", justifyContent:"center", alignContent:"center", margin:"2rem auto"  }}>
+      <div style={{display:"flex", justifyContent:"center", alignContent:"center", margin:"2rem auto"  }}>
         <AdComponent />
       </div>
     </div>

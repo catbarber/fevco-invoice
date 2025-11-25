@@ -2,6 +2,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-flow: row wrap;
   min-height: 100vh;
   background: linear-gradient(135deg, var(--cool-gray-900) 0%, var(--electric-purple) 50%, var(--primary-blue) 100%);
   padding: 20px;
