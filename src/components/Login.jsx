@@ -1,7 +1,6 @@
 import React from 'react';
 import AdComponent from './AdComponent/AdComponent';
 import { useAuth } from '../context/AuthContext';
-
 import '../styles/Login.css';
 
 const Login = () => {
@@ -20,7 +19,8 @@ const Login = () => {
       <div className="login-card">
         <h1 className="login-title">Simply Invoicing</h1>
         <p className="login-subtitle">Manage your invoices efficiently</p>
-         <button 
+        
+        <button 
           className="google-signin-btn"
           onClick={handleGoogleSignIn}
         >
@@ -32,6 +32,11 @@ const Login = () => {
           </svg>
           Sign in with Google
         </button>
+      </div>
+      
+      {/* Ad Component integrated below the login card */}
+      <div className="login-ad">
+        <AdComponent />
       </div>
     </div>
   );

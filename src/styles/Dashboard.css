@@ -9,6 +9,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.8);
   padding: 0 20px;
   display: flex;
+  flex-flow: row wrap;
   gap: 8px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -65,6 +66,13 @@
   max-width: 1200px;
   margin: 0 auto;
 }
+.dashboard-ad{
+  width: 100%;
+    display:flex;
+    justify-content:center;
+    align-content: center;
+    align-items: center;
+  }
 
 /* Tablet */
 @media (min-width: 768px) {
@@ -82,11 +90,24 @@
   .dashboard-main {
     padding: 32px 28px;
   }
+  .dashboard-ad{
+    width: 100%;
+    display:flex;
+    justify-content:center;
+    align-content: center;
+    align-items: center;
+  }
 }
 
 /* Desktop */
 @media (min-width: 1024px) {
   .dashboard-main {
     padding: 40px 32px;
+  }
+  .dashboard-ad{
+    display:flex;
+    justify-content:center;
+    align-content: center;
+    align-items: center;
   }
 }

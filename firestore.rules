@@ -3,40 +3,23 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // ===== ADMIN USERS COLLECTION =====
     match /adminUsers/{adminId} {
-      allow read, write: if request.auth != null && 
-        isAdminUser();
+      allow read, write: if isAdminUser();
     }
     
-    // ===== USERS COLLECTION =====
-    match /users/{userId} {
-      allow read: if request.auth != null && (
-        request.auth.uid == userId || 
-        isAdminUser()
-      );
-      allow write: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-    
-    // ===== INVOICES COLLECTION =====
-    match /invoices/{invoiceId} {
+    // ===== ALL OTHER COLLECTIONS =====
+    // Admins have full access to everything
+    match /{document=**} {
       allow read, write: if request.auth != null && (
-        // Users can read/write their own invoices
+        // Users can access their own data
         request.auth.uid == resource.data.userId ||
-        // Admins can read/write all invoices
-        isAdminUser()
-      );
-      
-      allow create: if request.auth != null && (
-        // Users can create their own invoices
-        request.auth.uid == request.resource.data.userId ||
-        // Admins can create invoices for any user
-        isAdminUser()
+        // Admins can access everything
+        isAdminUser() ||
+        // Allow creation of new documents
+        request.auth.uid == request.resource.data.userId
       );
     }
 
     // ===== CORE FUNCTIONS =====
-    
-    // Admin user verification
     function isAdminUser() {
       return request.auth != null && 
         (isSuperAdmin(request.auth.token.email) || 

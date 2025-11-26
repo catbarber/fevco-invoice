@@ -5,6 +5,7 @@ import InvoiceList from './InvoiceList';
 import InvoicePreview from './InvoicePreview';
 import Admin from './Admin';
 import Profile from './Profile';
+import AdComponent from './AdComponent/AdComponent';
 import { useAdmin } from '../context/AdminContext';
 import '../styles/Dashboard.css';
 
@@ -91,6 +92,9 @@ const Dashboard = () => {
         {activeView === 'profile' && <Profile />}
         {activeView === 'admin' && <Admin />}
       </main>
+      <div className="dashboard-ad">
+        <AdComponent/>
+      </div>
     </div>
   );
 };

@@ -6,13 +6,15 @@ import {
   doc, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase/config';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/InvoiceForm.css';
 
 const InvoiceForm = ({ invoice, onSave, onCancel }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [checkingLimit, setCheckingLimit] = useState(false);
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -63,11 +65,40 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
     }, 0);
   };
 
+  // Check if user can create more invoices
+  const checkInvoiceLimit = async () => {
+    try {
+      setCheckingLimit(true);
+      const checkInvoiceCreation = httpsCallable(functions, 'checkInvoiceCreation');
+      const result = await checkInvoiceCreation();
+      
+      if (!result.data.canCreate) {
+        throw new Error(
+          `You've reached your monthly limit of ${result.data.limit} invoices. ` +
+          `You've created ${result.data.currentCount} invoices this month. ` +
+          `Please upgrade your plan to create more invoices.`
+        );
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error checking invoice limit:', error);
+      throw error;
+    } finally {
+      setCheckingLimit(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Only check invoice limit when creating new invoices, not when editing
+      if (!invoice) {
+        await checkInvoiceLimit();
+      }
+
       const invoiceData = {
         ...formData,
         total: calculateTotal(),
@@ -86,17 +117,37 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
       onSave();
     } catch (error) {
       console.error('Error saving invoice:', error);
-      alert('Failed to save invoice');
+      alert(error.message || 'Failed to save invoice');
     } finally {
       setLoading(false);
     }
   };
+
+  // Check user's invoice limit when component mounts (for new invoices)
+  useEffect(() => {
+    if (!invoice) {
+      checkInvoiceLimit().catch(error => {
+        // Silently handle the error - we'll show it when they try to submit
+        console.log('Invoice limit check:', error.message);
+      });
+    }
+  }, [invoice]);
 
   return (
     <div className="invoice-form-container">
       <form onSubmit={handleSubmit} className="invoice-form">
         <div className="form-section">
           <h2>{invoice ? 'Edit Invoice' : 'Create New Invoice'}</h2>
+          {!invoice && (
+            <div className="limit-info">
+              <p>
+                {checkingLimit 
+                  ? 'Checking your invoice limit...' 
+                  : 'You can create invoices within your monthly limit'
+                }
+              </p>
+            </div>
+          )}
           
           <div className="form-grid">
             <div className="form-group">
@@ -106,6 +157,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 value={formData.invoiceNumber}
                 onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
                 required
+                disabled={invoice} // Prevent changing invoice number when editing
               />
             </div>
             
@@ -176,6 +228,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 value={item.description}
                 onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                 className="item-description"
+                required
               />
               <input
                 type="number"
@@ -184,6 +237,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                 min="1"
                 className="item-quantity"
+                required
               />
               <input
                 type="number"
@@ -193,6 +247,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 step="0.01"
                 min="0"
                 className="item-price"
+                required
               />
               <span className="item-total">
                 ${(item.quantity * item.price).toFixed(2)}
@@ -202,6 +257,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                   type="button"
                   onClick={() => removeItem(index)}
                   className="remove-item-btn"
+                  disabled={loading}
                 >
                   ×
                 </button>
@@ -209,7 +265,12 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
             </div>
           ))}
           
-          <button type="button" onClick={addItem} className="add-item-btn">
+          <button 
+            type="button" 
+            onClick={addItem} 
+            className="add-item-btn"
+            disabled={loading}
+          >
             + Add Item
           </button>
           
@@ -231,11 +292,22 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
         </div>
 
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="cancel-btn">
+          <button 
+            type="button" 
+            onClick={onCancel} 
+            className="cancel-btn"
+            disabled={loading}
+          >
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="save-btn">
-            {loading ? 'Saving...' : 'Save Invoice'}
+          <button 
+            type="submit" 
+            disabled={loading || checkingLimit} 
+            className="save-btn"
+          >
+            {loading ? 'Saving...' : 
+             checkingLimit ? 'Checking Limit...' : 
+             invoice ? 'Update Invoice' : 'Create Invoice'}
           </button>
         </div>
       </form>
