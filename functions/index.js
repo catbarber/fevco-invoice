@@ -1422,3 +1422,407 @@ View this user in the admin panel: https://feveck-invoice.web.app/admin
 This is an automated notification from Invoice App.
   `.trim();
 }
+
+// Get Pricing Plans
+exports.getPricingPlans = onCall(async (request) => {
+  try {
+    console.log('💰 getPricingPlans called');
+    
+    const plans = {
+      free: {
+        id: 'free',
+        name: 'Free',
+        price: 0,
+        interval: 'month',
+        features: [
+          'Up to 10 invoices per month',
+          'Basic email templates',
+          'Standard support',
+          'PDF export'
+        ],
+        stripePriceId: null,
+        invoiceLimit: 10
+      },
+      basic: {
+        id: 'basic',
+        name: 'Basic',
+        price: 9.99,
+        interval: 'month',
+        features: [
+          'Up to 100 invoices per month',
+          'Professional email templates',
+          'Priority support',
+          'Custom branding',
+          'Advanced analytics'
+        ],
+        stripePriceId: 'price_basic_monthly', // Replace with your actual Stripe Price ID
+        invoiceLimit: 100
+      },
+      premium: {
+        id: 'premium', 
+        name: 'Premium',
+        price: 19.99,
+        interval: 'month',
+        features: [
+          'Unlimited invoices',
+          'Advanced email templates',
+          '24/7 priority support',
+          'Custom branding',
+          'Advanced analytics',
+          'API access'
+        ],
+        stripePriceId: 'price_premium_monthly', // Replace with your actual Stripe Price ID
+        invoiceLimit: 1000
+      }
+    };
+    
+    console.log('✅ Returning pricing plans');
+    
+    return {
+      success: true,
+      plans: plans
+    };
+  } catch (error) {
+    console.error('❌ getPricingPlans error:', error);
+    throw new Error(`Failed to get pricing plans: ${error.message}`);
+  }
+});
+
+// Create Stripe Checkout Session
+exports.createCheckoutSession = onCall(async (request) => {
+  console.log('💰 createCheckoutSession called');
+  
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const { priceId, planId } = request.data;
+    const userId = request.auth.uid;
+
+    if (!priceId) {
+      throw new Error('Price ID is required');
+    }
+
+    console.log('🔄 Creating checkout session for user:', userId, 'plan:', planId);
+
+    // Get user data
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+
+    const userData = userDoc.data();
+    let stripeCustomerId = userData.stripeCustomerId;
+
+    // Create Stripe customer if doesn't exist
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: userData.email,
+        name: userData.displayName || userData.email,
+        metadata: {
+          firebaseUID: userId,
+        },
+      });
+
+      stripeCustomerId = customer.id;
+
+      // Save Stripe customer ID to user document
+      await db.collection('users').doc(userId).update({
+        stripeCustomerId: customer.id,
+      });
+      
+      console.log('✅ Created new Stripe customer:', stripeCustomerId);
+    }
+
+    console.log('🔄 Creating checkout session for customer:', stripeCustomerId);
+
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: 'https://feveck-invoice.web.app/profile?session_id={CHECKOUT_SESSION_ID}&success=true',
+      cancel_url: 'https://feveck-invoice.web.app/profile?cancelled=true',
+      metadata: {
+        firebaseUID: userId,
+        planId: planId
+      },
+      subscription_data: {
+        metadata: {
+          firebaseUID: userId,
+          planId: planId
+        }
+      }
+    });
+
+    console.log('✅ Checkout session created:', session.id);
+
+    return {
+      success: true,
+      sessionId: session.id,
+      url: session.url,
+    };
+
+  } catch (error) {
+    console.error('❌ createCheckoutSession error:', error);
+    throw new Error(`Failed to create checkout session: ${error.message}`);
+  }
+});
+
+// Create Customer Portal Session
+exports.createCustomerPortalSession = onCall(async (request) => {
+  console.log('🔗 createCustomerPortalSession called');
+  
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const userId = request.auth.uid;
+    
+    // Get user data to find their Stripe customer ID
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+
+    const userData = userDoc.data();
+    const stripeCustomerId = userData.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      throw new Error('No Stripe customer found. Please contact support.');
+    }
+
+    console.log('🔄 Creating portal session for customer:', stripeCustomerId);
+
+    // Create Stripe portal session
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: 'https://feveck-invoice.web.app/profile',
+    });
+
+    console.log('✅ Portal session created:', portalSession.id);
+
+    return {
+      success: true,
+      url: portalSession.url,
+    };
+
+  } catch (error) {
+    console.error('❌ createCustomerPortalSession error:', error);
+    throw new Error(`Failed to create customer portal: ${error.message}`);
+  }
+});
+
+// Get Subscription Status
+exports.getSubscriptionStatus = onCall(async (request) => {
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const userId = request.auth.uid;
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+
+    const userData = userDoc.data();
+    
+    // If user has Stripe subscription, get details from Stripe
+    let subscriptionDetails = null;
+    if (userData.stripeSubscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(userData.stripeSubscriptionId);
+        subscriptionDetails = {
+          status: subscription.status,
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          plan: subscription.items.data[0]?.price.id
+        };
+      } catch (stripeError) {
+        console.error('Error fetching Stripe subscription:', stripeError);
+      }
+    }
+    
+    return {
+      success: true,
+      subscription: {
+        status: userData.subscriptionStatus || 'inactive',
+        plan: userData.plan || 'free',
+        currentPeriodEnd: userData.currentPeriodEnd,
+        stripeCustomerId: userData.stripeCustomerId,
+        stripeSubscriptionId: userData.stripeSubscriptionId,
+        ...subscriptionDetails
+      }
+    };
+  } catch (error) {
+    console.error('❌ getSubscriptionStatus error:', error);
+    throw new Error(`Failed to get subscription status: ${error.message}`);
+  }
+});
+
+// Check Invoice Limit
+exports.checkInvoiceLimit = onCall(async (request) => {
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const userId = request.auth.uid;
+    
+    // Get user's subscription status
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    const subscriptionStatus = userData.subscriptionStatus || 'inactive';
+    const plan = userData.plan || 'free';
+    
+    // Define limits based on plan
+    const limits = {
+      free: 10,
+      basic: 100,
+      premium: 1000
+    };
+    
+    const currentLimit = limits[plan] || limits.free;
+    
+    // Count user's invoices for current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const invoicesSnapshot = await db.collection('invoices')
+      .where('userId', '==', userId)
+      .where('createdAt', '>=', startOfMonth)
+      .where('createdAt', '<=', endOfMonth)
+      .get();
+    
+    const invoiceCount = invoicesSnapshot.size;
+    const canCreateMore = invoiceCount < currentLimit;
+    
+    return {
+      success: true,
+      canCreateMore,
+      currentCount: invoiceCount,
+      limit: currentLimit,
+      plan: plan,
+      subscriptionStatus: subscriptionStatus
+    };
+    
+  } catch (error) {
+    console.error('❌ checkInvoiceLimit error:', error);
+    throw new Error(`Failed to check invoice limit: ${error.message}`);
+  }
+});
+
+// Stripe Webhook Handler
+exports.stripeWebhooks = onRequest({
+  secrets: ['STRIPE_WEBHOOK_SECRET']
+}, async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    // Verify webhook signature
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log('🪝 Stripe webhook received:', event.type);
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+      
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object);
+        break;
+      
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object);
+        break;
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+});
+
+// Webhook handlers
+async function handleCheckoutSessionCompleted(session) {
+  const userId = session.metadata.firebaseUID;
+  const planId = session.metadata.planId;
+  
+  console.log('✅ Checkout completed for user:', userId, 'plan:', planId);
+
+  const subscription = await stripe.subscriptions.retrieve(session.subscription);
+
+  await db.collection('users').doc(userId).update({
+    stripeSubscriptionId: subscription.id,
+    subscriptionStatus: subscription.status,
+    plan: planId,
+    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+  });
+
+  console.log('✅ User subscription updated in Firestore');
+}
+
+async function handleSubscriptionUpdated(subscription) {
+  const customers = await stripe.customers.list({
+    email: subscription.customer,
+  });
+  
+  if (customers.data.length > 0) {
+    const customer = customers.data[0];
+    const userId = customer.metadata.firebaseUID;
+
+    console.log('📝 Subscription updated for user:', userId);
+
+    await db.collection('users').doc(userId).update({
+      subscriptionStatus: subscription.status,
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+    });
+  }
+}
+
+async function handleSubscriptionDeleted(subscription) {
+  const customers = await stripe.customers.list({
+    email: subscription.customer,
+  });
+  
+  if (customers.data.length > 0) {
+    const customer = customers.data[0];
+    const userId = customer.metadata.firebaseUID;
+
+    console.log('❌ Subscription deleted for user:', userId);
+
+    await db.collection('users').doc(userId).update({
+      stripeSubscriptionId: null,
+      subscriptionStatus: 'canceled',
+      plan: 'free',
+      currentPeriodEnd: null,
+    });
+  }
+}

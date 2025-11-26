@@ -4,8 +4,8 @@ import InvoiceForm from './InvoiceForm';
 import InvoiceList from './InvoiceList';
 import InvoicePreview from './InvoicePreview';
 import Admin from './Admin';
+import Profile from './Profile';
 import { useAdmin } from '../context/AdminContext';
-import AdComponent from './AdComponent/AdComponent';
 import '../styles/Dashboard.css';
 
 const Dashboard = () => {
@@ -13,7 +13,6 @@ const Dashboard = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const { isAdmin, loading: adminLoading } = useAdmin();
 
-  // Don't show admin tab while loading
   if (adminLoading) {
     return (
       <div className="dashboard">
@@ -33,20 +32,26 @@ const Dashboard = () => {
           className={`nav-btn ${activeView === 'list' ? 'active' : ''}`}
           onClick={() => setActiveView('list')}
         >
-          Invoices
+          📄 Invoices
         </button>
         <button 
           className={`nav-btn ${activeView === 'create' ? 'active' : ''}`}
           onClick={() => setActiveView('create')}
         >
-          Create Invoice
+          ➕ Create Invoice
+        </button>
+        <button 
+          className={`nav-btn ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveView('profile')}
+        >
+          👤 Profile
         </button>
         {isAdmin && (
           <button 
             className={`nav-btn ${activeView === 'admin' ? 'active' : ''}`}
             onClick={() => setActiveView('admin')}
           >
-            Admin
+            ⚙️ Admin
           </button>
         )}
       </nav>
@@ -83,12 +88,9 @@ const Dashboard = () => {
             }}
           />
         )}
+        {activeView === 'profile' && <Profile />}
         {activeView === 'admin' && <Admin />}
       </main>
-
-      <div style={{display:"flex", justifyContent:"center", alignContent:"center", margin:"2rem auto"  }}>
-        <AdComponent />
-      </div>
     </div>
   );
 };
