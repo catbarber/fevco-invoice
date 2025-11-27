@@ -95,7 +95,7 @@ const Login = () => {
             className="new-user-btn"
             onClick={() => setShowNewUserInfo(true)}
           >
-            🆕 New User? Learn More
+            🆕 New User? Click Here
           </button>
         </div>
       </div>
