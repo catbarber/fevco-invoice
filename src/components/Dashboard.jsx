@@ -29,26 +29,26 @@ const Dashboard = () => {
     <div className="dashboard">
       <Header />
       <nav className="dashboard-nav">
-        <button 
+        <button
           className={`nav-btn ${activeView === 'list' ? 'active' : ''}`}
           onClick={() => setActiveView('list')}
         >
           📄 Invoices
         </button>
-        <button 
+        <button
           className={`nav-btn ${activeView === 'create' ? 'active' : ''}`}
           onClick={() => setActiveView('create')}
         >
           ➕ Create Invoice
         </button>
-        <button 
+        <button
           className={`nav-btn ${activeView === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveView('profile')}
         >
           👤 Profile
         </button>
         {isAdmin && (
-          <button 
+          <button
             className={`nav-btn ${activeView === 'admin' ? 'active' : ''}`}
             onClick={() => setActiveView('admin')}
           >
@@ -56,10 +56,10 @@ const Dashboard = () => {
           </button>
         )}
       </nav>
-      
+
       <main className="dashboard-main">
         {activeView === 'list' && (
-          <InvoiceList 
+          <InvoiceList
             onViewInvoice={setSelectedInvoice}
             onEditInvoice={(invoice) => {
               setSelectedInvoice(invoice);
@@ -68,7 +68,7 @@ const Dashboard = () => {
           />
         )}
         {activeView === 'create' && (
-          <InvoiceForm 
+          <InvoiceForm
             invoice={selectedInvoice}
             onSave={() => {
               setSelectedInvoice(null);
@@ -81,7 +81,7 @@ const Dashboard = () => {
           />
         )}
         {selectedInvoice && activeView === 'preview' && (
-          <InvoicePreview 
+          <InvoicePreview
             invoice={selectedInvoice}
             onClose={() => {
               setSelectedInvoice(null);
@@ -93,7 +93,17 @@ const Dashboard = () => {
         {activeView === 'admin' && <Admin />}
       </main>
       <div className="dashboard-ad">
-        <AdComponent/>
+        <AdComponent />
+      </div>
+      <div style={{
+        borderTop: '1px solid rgba(54, 52, 52, 0.93)',
+        paddingTop: '1rem',
+        textAlign: 'center',
+        opacity: 0.7
+      }}>
+        <p style={{
+          color: "#000"
+        }}>&copy; 2025 Created by <a href='https://chris-feveck.web.app' target='_blank'>Chris</a>. All rights reserved.</p>
       </div>
     </div>
   );
