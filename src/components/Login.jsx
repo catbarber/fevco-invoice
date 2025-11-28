@@ -112,7 +112,7 @@ const Login = () => {
       }}>
         <p style={{
           color: "#fff"
-        }}>&copy; 2025 Created by <a href='https://chris-feveck.web.app' target='_blank'>Chris</a>. All rights reserved.</p>
+        }}>&copy; 2025 Created by <a href='https://chris-feveck.web.app' target='_blank' style={{color:"white"}}>Chris</a>. All rights reserved.</p>
       </div>
       {/* New User Information Modal */}
       {showNewUserInfo && (
