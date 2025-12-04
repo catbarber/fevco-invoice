@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase/config';
@@ -40,7 +40,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
-    newItems[index][field] = field === 'quantity' || field === 'price' ? 
+    newItems[index][field] = field === 'quantity' || field === 'price' ?
       parseFloat(value) || 0 : value;
     setFormData({ ...formData, items: newItems });
   };
@@ -68,27 +68,25 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
   // Check if user can create more invoices
   const checkInvoiceLimit = async () => {
     try {
-      setCheckingLimit(true);
+      setError('');
       const checkInvoiceCreation = httpsCallable(functions, 'checkInvoiceCreation');
       const result = await checkInvoiceCreation();
-      
+
+      console.log('✅ Invoice limit check result:', result.data);
+
       if (!result.data.canCreate) {
-        throw new Error(
-          `You've reached your monthly limit of ${result.data.limit} invoices. ` +
-          `You've created ${result.data.currentCount} invoices this month. ` +
-          `Please upgrade your plan to create more invoices.`
-        );
+        setError(`You have reached your monthly invoice limit (${result.data.limit}). Please upgrade your plan to create more invoices.`);
+        return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.error('Error checking invoice limit:', error);
-      throw error;
-    } finally {
-      setCheckingLimit(false);
+      console.error('❌ Error checking invoice limit:', error);
+      // Don't block invoice creation if the check fails - use as warning only
+      console.log('Invoice limit check failed, but allowing creation:', error.message);
+      return true; // Allow creation as fallback
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -141,42 +139,42 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
           {!invoice && (
             <div className="limit-info">
               <p>
-                {checkingLimit 
-                  ? 'Checking your invoice limit...' 
+                {checkingLimit
+                  ? 'Checking your invoice limit...'
                   : 'You can create invoices within your monthly limit'
                 }
               </p>
             </div>
           )}
-          
+
           <div className="form-grid">
             <div className="form-group">
               <label>Invoice Number</label>
               <input
                 type="text"
                 value={formData.invoiceNumber}
-                onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
                 required
                 disabled={invoice} // Prevent changing invoice number when editing
               />
             </div>
-            
+
             <div className="form-group">
               <label>Date</label>
               <input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label>Due Date</label>
               <input
                 type="date"
                 value={formData.dueDate}
-                onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                 required
               />
             </div>
@@ -191,26 +189,26 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
               <input
                 type="text"
                 value={formData.clientName}
-                onChange={(e) => setFormData({...formData, clientName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label>Client Email</label>
               <input
                 type="email"
                 value={formData.clientEmail}
-                onChange={(e) => setFormData({...formData, clientEmail: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
                 required
               />
             </div>
-            
+
             <div className="form-group full-width">
               <label>Client Address</label>
               <textarea
                 value={formData.clientAddress}
-                onChange={(e) => setFormData({...formData, clientAddress: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })}
                 rows="3"
                 required
               />
@@ -236,6 +234,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 value={item.quantity}
                 onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                 min="1"
+                step="0.01"
                 className="item-quantity"
                 required
               />
@@ -264,16 +263,16 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
               )}
             </div>
           ))}
-          
-          <button 
-            type="button" 
-            onClick={addItem} 
+
+          <button
+            type="button"
+            onClick={addItem}
             className="add-item-btn"
             disabled={loading}
           >
             + Add Item
           </button>
-          
+
           <div className="total-section">
             <strong>Total: ${calculateTotal().toFixed(2)}</strong>
           </div>
@@ -284,7 +283,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
             <label>Notes</label>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows="3"
               placeholder="Additional notes..."
             />
@@ -292,22 +291,22 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
         </div>
 
         <div className="form-actions">
-          <button 
-            type="button" 
-            onClick={onCancel} 
+          <button
+            type="button"
+            onClick={onCancel}
             className="cancel-btn"
             disabled={loading}
           >
             Cancel
           </button>
-          <button 
-            type="submit" 
-            disabled={loading || checkingLimit} 
+          <button
+            type="submit"
+            disabled={loading || checkingLimit}
             className="save-btn"
           >
-            {loading ? 'Saving...' : 
-             checkingLimit ? 'Checking Limit...' : 
-             invoice ? 'Update Invoice' : 'Create Invoice'}
+            {loading ? 'Saving...' :
+              checkingLimit ? 'Checking Limit...' :
+                invoice ? 'Update Invoice' : 'Create Invoice'}
           </button>
         </div>
       </form>

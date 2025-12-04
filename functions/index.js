@@ -5,7 +5,6 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
-const cors = require('cors')({ origin: true });
 
 // Load environment variables from .env file
 require('dotenv').config();
@@ -20,23 +19,8 @@ setGlobalOptions({
   maxInstances: 5,
   memory: '512MiB',
   timeoutSeconds: 120,
-  cors: true // This enables CORS for all functions
+  cors: true
 });
-
-// CORS handler helper function
-const corsHandler = (req, res, callback) => {
-  return cors(req, res, async () => {
-    try {
-      await callback(req, res);
-    } catch (error) {
-      console.error('Error in CORS handler:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-};
 
 // Email configuration with dotenv support
 const createTransporter = () => {
@@ -70,16 +54,38 @@ const createTransporter = () => {
   });
 };
 
-// Get Subscription Status Function with CORS
+// Helper function to check if user is admin
+const isAdminUser = async (userEmail, userId) => {
+  if (!userEmail) return false;
+  
+  const SUPER_ADMINS = ['christopher.feveck@gmail.com', 'feveck.chris@gmail.com'];
+  
+  // Check if super admin
+  if (SUPER_ADMINS.includes(userEmail)) {
+    return true;
+  }
+  
+  // Check admin users collection
+  try {
+    const adminDoc = await db.collection('adminUsers').doc(userEmail).get();
+    return adminDoc.exists;
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+};
+
+// ==================== SUBSCRIPTION & INVOICE FUNCTIONS ====================
+
+// Get Subscription Status Function
 exports.getSubscriptionStatus = onCall({
   memory: '512MiB',
   timeoutSeconds: 120,
-  cors: true // Enable CORS for this specific function
+  cors: true
 }, async (request) => {
   console.log('📋 getSubscriptionStatus called');
   
   try {
-    // Authentication check
     if (!request.auth) {
       throw new Error('Authentication required. Please sign in again.');
     }
@@ -106,7 +112,27 @@ exports.getSubscriptionStatus = onCall({
     // Get user data for non-admin users
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new Error('User not found');
+      // Create default user document if it doesn't exist
+      const defaultUserData = {
+        email: userEmail,
+        displayName: request.auth.token.name || '',
+        plan: 'free',
+        subscriptionStatus: 'inactive',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      await db.collection('users').doc(userId).set(defaultUserData);
+      
+      return {
+        success: true,
+        canCreate: true,
+        canSendEmails: false,
+        currentCount: 0,
+        limit: 10,
+        plan: 'free',
+        isAdmin: false,
+        subscriptionStatus: 'inactive'
+      };
     }
 
     const userData = userDoc.data();
@@ -154,12 +180,14 @@ exports.getSubscriptionStatus = onCall({
   }
 });
 
-// Check Invoice Creation with CORS
+// Check Invoice Creation - FIXED VERSION
 exports.checkInvoiceCreation = onCall({
   memory: '512MiB',
   timeoutSeconds: 120,
   cors: true
 }, async (request) => {
+  console.log('🔍 checkInvoiceCreation called');
+  
   try {
     if (!request.auth) {
       throw new Error('Authentication required');
@@ -168,10 +196,13 @@ exports.checkInvoiceCreation = onCall({
     const userId = request.auth.uid;
     const userEmail = request.auth.token.email;
     
+    console.log('👤 Checking invoice creation for:', { userId, userEmail });
+
     // Check if user is admin
     const userIsAdmin = await isAdminUser(userEmail, userId);
     
     if (userIsAdmin) {
+      console.log('✅ User is admin, unlimited access');
       return {
         success: true,
         canCreate: true,
@@ -184,13 +215,25 @@ exports.checkInvoiceCreation = onCall({
 
     // Get user data for non-admin users
     const userDoc = await db.collection('users').doc(userId).get();
+    
     if (!userDoc.exists) {
-      throw new Error('User not found');
+      console.log('⚠️ User document not found, allowing first invoice');
+      // Allow first invoice creation for new users
+      return {
+        success: true,
+        canCreate: true,
+        currentCount: 0,
+        limit: 10,
+        plan: 'free',
+        isAdmin: false
+      };
     }
 
     const userData = userDoc.data();
     const userPlan = userData.plan || 'free';
     
+    console.log('📊 User plan:', userPlan);
+
     // Define limits
     const limits = {
       'free': 10,
@@ -205,6 +248,8 @@ exports.checkInvoiceCreation = onCall({
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     
+    console.log('📅 Date range:', { startOfMonth, endOfMonth });
+
     const invoicesSnapshot = await db.collection('invoices')
       .where('userId', '==', userId)
       .where('createdAt', '>=', startOfMonth)
@@ -214,6 +259,12 @@ exports.checkInvoiceCreation = onCall({
     const invoiceCount = invoicesSnapshot.size;
     const canCreateMore = invoiceCount < currentLimit;
     
+    console.log('📈 Invoice stats:', { 
+      invoiceCount, 
+      currentLimit, 
+      canCreateMore 
+    });
+
     return {
       success: true,
       canCreate: canCreateMore,
@@ -224,12 +275,102 @@ exports.checkInvoiceCreation = onCall({
     };
     
   } catch (error) {
-    console.error('❌ checkInvoiceCreation error:', error);
-    throw new Error(`Failed to check invoice creation: ${error.message}`);
+    console.error('💥 checkInvoiceCreation error:', error);
+    
+    // Return a user-friendly error message
+    if (error.code === 'permission-denied') {
+      throw new Error('Permission denied. Please check your Firestore rules.');
+    } else {
+      throw new Error(`Failed to check invoice creation: ${error.message}`);
+    }
   }
 });
 
-// Check Email Permissions with CORS
+// Create Invoice with Validation
+exports.createInvoiceWithValidation = onCall({
+  memory: '512MiB',
+  timeoutSeconds: 120,
+  cors: true
+}, async (request) => {
+  console.log('📝 createInvoiceWithValidation called');
+  
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const userId = request.auth.uid;
+    const userEmail = request.auth.token.email;
+    const invoiceData = request.data;
+
+    console.log('👤 Creating invoice for:', { userId, userEmail });
+
+    // Check if user can create invoice
+    const userIsAdmin = await isAdminUser(userEmail, userId);
+    
+    if (!userIsAdmin) {
+      // For non-admin users, check subscription limits
+      const userDoc = await db.collection('users').doc(userId).get();
+      const userData = userDoc.data();
+      const userPlan = userData?.plan || 'free';
+      
+      // Count invoices for current month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const invoicesSnapshot = await db.collection('invoices')
+        .where('userId', '==', userId)
+        .where('createdAt', '>=', startOfMonth)
+        .where('createdAt', '<=', endOfMonth)
+        .get();
+      
+      const invoiceCount = invoicesSnapshot.size;
+      const limits = { 'free': 10, 'basic': 50, 'premium': 1000 };
+      const currentLimit = limits[userPlan] || limits.free;
+      
+      if (invoiceCount >= currentLimit) {
+        throw new Error(`You have reached your monthly invoice limit (${currentLimit}). Please upgrade your plan to create more invoices.`);
+      }
+    }
+
+    // Create the invoice
+    const invoiceWithMetadata = {
+      ...invoiceData,
+      userId: userId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'pending',
+      createdByAdmin: userIsAdmin
+    };
+
+    // Remove any undefined values
+    Object.keys(invoiceWithMetadata).forEach(key => {
+      if (invoiceWithMetadata[key] === undefined) {
+        delete invoiceWithMetadata[key];
+      }
+    });
+
+    console.log('💾 Saving invoice:', invoiceWithMetadata);
+
+    const docRef = await db.collection('invoices').add(invoiceWithMetadata);
+
+    console.log('✅ Invoice created successfully:', docRef.id);
+
+    return {
+      success: true,
+      invoiceId: docRef.id,
+      message: 'Invoice created successfully',
+      isAdmin: userIsAdmin
+    };
+
+  } catch (error) {
+    console.error('💥 createInvoiceWithValidation error:', error);
+    throw new Error(`Failed to create invoice: ${error.message}`);
+  }
+});
+
+// Check Email Permissions
 exports.checkEmailPermissions = onCall({
   memory: '512MiB',
   timeoutSeconds: 120,
@@ -276,7 +417,9 @@ exports.checkEmailPermissions = onCall({
   }
 });
 
-// Send Invoice Email with CORS
+// ==================== EMAIL FUNCTIONS ====================
+
+// Send Invoice Email
 exports.sendInvoiceEmail = onCall({
   memory: '512MiB',
   timeoutSeconds: 120,
@@ -287,7 +430,6 @@ exports.sendInvoiceEmail = onCall({
   console.log('📧 PRODUCTION sendInvoiceEmail called - REAL EMAILS');
   
   try {
-    // Authentication check
     if (!request.auth) {
       throw new Error('Authentication required. Please sign in again.');
     }
@@ -296,7 +438,6 @@ exports.sendInvoiceEmail = onCall({
     const userEmail = request.auth.token.email;
     const userId = request.auth.uid;
     
-    // Input validation
     if (!invoiceId) {
       throw new Error('Invoice ID is required.');
     }
@@ -307,7 +448,6 @@ exports.sendInvoiceEmail = onCall({
     const userIsAdmin = await isAdminUser(userEmail, userId);
     
     if (!userIsAdmin) {
-      // For non-admin users, check subscription
       const userDoc = await db.collection('users').doc(userId).get();
       const userData = userDoc.data();
       const userPlan = userData?.plan || 'free';
@@ -328,7 +468,7 @@ exports.sendInvoiceEmail = onCall({
     const invoice = invoiceDoc.data();
     console.log('📄 Invoice found:', invoice.clientName, 'Total: $' + invoice.total?.toFixed(2));
 
-    // Permission check - user must own the invoice
+    // Permission check
     if (invoice.userId !== userId && !userIsAdmin) {
       throw new Error('You do not have permission to send this invoice.');
     }
@@ -404,7 +544,7 @@ exports.sendInvoiceEmail = onCall({
       invoiceTotal: invoice.total,
       clientName: invoice.clientName,
       sentByAdmin: userIsAdmin,
-      userPlan: userIsAdmin ? 'admin' : (userData?.plan || 'free')
+      userPlan: userIsAdmin ? 'admin' : 'free'
     });
 
     console.log('🎉 PRODUCTION sendInvoiceEmail completed successfully - REAL EMAIL SENT');
@@ -443,28 +583,48 @@ exports.sendInvoiceEmail = onCall({
   }
 });
 
-// Helper function to check if user is admin
-const isAdminUser = async (userEmail, userId) => {
-  if (!userEmail) return false;
-  
-  const SUPER_ADMINS = ['christopher.feveck@gmail.com', 'feveck.chris@gmail.com'];
-  
-  // Check if super admin
-  if (SUPER_ADMINS.includes(userEmail)) {
-    return true;
-  }
-  
-  // Check admin users collection
-  try {
-    const adminDoc = await db.collection('adminUsers').doc(userEmail).get();
-    return adminDoc.exists;
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-    return false;
-  }
-};
+// ==================== UTILITY FUNCTIONS ====================
 
-// Professional email template
+// Update user subscription plan
+exports.updateUserSubscription = onCall({
+  memory: '512MiB',
+  timeoutSeconds: 120,
+  cors: true
+}, async (request) => {
+  try {
+    if (!request.auth) {
+      throw new Error('Authentication required');
+    }
+
+    const { userId, plan, status } = request.data;
+    
+    // Only admins can update subscriptions manually
+    const userEmail = request.auth.token.email;
+    const isAdmin = await isAdminUser(userEmail, request.auth.uid);
+    
+    if (!isAdmin) {
+      throw new Error('Admin access required to update subscriptions');
+    }
+
+    await db.collection('users').doc(userId).update({
+      plan: plan,
+      subscriptionStatus: status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return {
+      success: true,
+      message: `User ${userId} subscription updated to ${plan}`
+    };
+    
+  } catch (error) {
+    console.error('❌ updateUserSubscription error:', error);
+    throw new Error(`Failed to update subscription: ${error.message}`);
+  }
+});
+
+// ==================== EMAIL TEMPLATES ====================
+
 function generateProfessionalEmail(invoice) {
   const itemsHtml = invoice.items.map(item => `
     <tr>
@@ -710,6 +870,7 @@ Thank you for your business!
 ==========================================
   `.trim();
 }
+
 
 // Send welcome email to new users
 exports.sendWelcomeEmail = onDocumentCreated('users/{userId}', async (event) => {
