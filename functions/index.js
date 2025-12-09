@@ -486,7 +486,7 @@ exports.sendInvoiceEmail = onCall({
     const textVersion = generateTextVersion(invoice);
 
     const mailOptions = {
-      from: `"Invoice App" <${process.env.GMAIL_EMAIL}>`,
+      from: `"Simply Invoicing - A Fevco Product" <${process.env.GMAIL_EMAIL}>`,
       to: invoice.clientEmail,
       subject: `Invoice #${invoice.invoiceNumber || invoiceId.slice(-8)}`,
       html: emailHtml,
@@ -828,7 +828,7 @@ function generateProfessionalEmail(invoice) {
     
     <div class="footer">
       <p style="margin: 0 0 10px 0;">
-        This invoice was sent via <strong>Invoice App</strong>
+        This invoice was sent via <strong>Simply Invoicing - A Fevco Product</strong>
       </p>
       <p style="margin: 0; font-size: 13px; color: #868e96;">
         If you have any questions about this invoice, please contact the sender.
@@ -896,9 +896,9 @@ exports.sendWelcomeEmail = onDocumentCreated('users/{userId}', async (event) => 
     const welcomeText = generateWelcomeText(userName);
 
     const mailOptions = {
-      from: `"Invoice App" <${process.env.GMAIL_EMAIL}>`,
+      from: `"Simply Invoicing - A Fevco Product" <${process.env.GMAIL_EMAIL}>`,
       to: userEmail,
-      subject: 'Welcome to Invoice App! 🎉',
+      subject: 'Welcome to Simply Invoicing - A Fevco Product! 🎉',
       html: welcomeHtml,
       text: welcomeText,
       headers: {
@@ -986,7 +986,7 @@ exports.notifyAdminsNewUser = onDocumentCreated('users/{userId}', async (event) 
     const adminNotificationText = generateAdminNotificationText(userName, userEmail, signupTime);
 
     const mailOptions = {
-      from: `"Invoice App" <${process.env.GMAIL_EMAIL}>`,
+      from: `"Simply Invoicing - A Fevco Product" <${process.env.GMAIL_EMAIL}>`,
       to: allAdminEmails,
       subject: `🎉 New User Signed Up: ${userName}`,
       html: adminNotificationHtml,
@@ -1050,7 +1050,7 @@ function generateWelcomeEmail(userName) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Invoice App!</title>
+  <title>Welcome to Simply Invoicing - A Fevco Product!</title>
   <style>
     body { 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -1167,13 +1167,13 @@ function generateWelcomeEmail(userName) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Welcome to Invoice App! 🎉</h1>
+      <h1>Welcome to Simply Invoicing - A Fevco Product! 🎉</h1>
     </div>
     
     <div class="content">
       <div class="welcome-message">
         <p>Hi <strong>${userName}</strong>,</p>
-        <p>Welcome to Invoice App! We're thrilled to have you on board. Get ready to streamline your invoicing process and get paid faster.</p>
+        <p>Welcome to Simply Invoicing - A Fevco Product! We're thrilled to have you on board. Get ready to streamline your invoicing process and get paid faster.</p>
       </div>
 
       <div class="features-grid">
@@ -1222,7 +1222,7 @@ function generateWelcomeEmail(userName) {
         Need help? Reply to this email or visit our help center.
       </p>
       <p style="margin: 0; font-size: 13px; color: #868e96;">
-        You're receiving this email because you recently created an account with Invoice App.
+        You're receiving this email because you recently created an account with Simply Invoicing - A Fevco Product.
       </p>
     </div>
   </div>
@@ -1233,11 +1233,11 @@ function generateWelcomeEmail(userName) {
 
 function generateWelcomeText(userName) {
   return `
-Welcome to Invoice App! 🎉
+Welcome to Simply Invoicing - A Fevco Product! 🎉
 
 Hi ${userName},
 
-Welcome to Invoice App! We're thrilled to have you on board. Get ready to streamline your invoicing process and get paid faster.
+Welcome to Simply Invoicing - A Fevco Product! We're thrilled to have you on board. Get ready to streamline your invoicing process and get paid faster.
 
 ✨ Key Features:
 • Create professional invoices in seconds
@@ -1250,7 +1250,7 @@ Create your first invoice now: https://feveck-invoice.web.app
 
 Need help? Reply to this email or visit our help center.
 
-Thank you for choosing Invoice App!
+Thank you for choosing Simply Invoicing - A Fevco Product!
   `.trim();
 }
 
@@ -1409,7 +1409,7 @@ function generateAdminNotificationEmail(userName, userEmail, userPhoto, signupTi
     
     <div class="content">
       <p style="font-size: 16px; color: #555; margin-bottom: 25px;">
-        Great news! A new user has just signed up for Invoice App.
+        Great news! A new user has just signed up for Simply Invoicing - A Fevco Product.
       </p>
 
       <div class="user-card">
@@ -1459,7 +1459,7 @@ function generateAdminNotificationEmail(userName, userEmail, userPhoto, signupTi
     
     <div class="footer">
       <p style="margin: 0; font-size: 13px; color: #868e96;">
-        This is an automated notification from Invoice App.
+        This is an automated notification from Simply Invoicing - A Fevco Product.
       </p>
     </div>
   </div>
@@ -1472,7 +1472,7 @@ function generateAdminNotificationText(userName, userEmail, signupTime) {
   return `
 🎉 NEW USER SIGNUP NOTIFICATION
 
-A new user has just signed up for Invoice App!
+A new user has just signed up for Simply Invoicing - A Fevco Product!
 
 User Details:
 • Name: ${userName}
@@ -1481,7 +1481,7 @@ User Details:
 
 View this user in the admin panel: https://feveck-invoice.web.app/admin
 
-This is an automated notification from Invoice App.
+This is an automated notification from Simply Invoicing - A Fevco Product.
   `.trim();
 }
 

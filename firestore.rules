@@ -6,24 +6,98 @@ service cloud.firestore {
       allow read, write: if isAdminUser();
     }
     
-    // ===== ALL OTHER COLLECTIONS =====
-    // Admins have full access to everything
-    match /{document=**} {
-      allow read, write: if request.auth != null && (
-        // Users can access their own data
+    // ===== CLIENTS COLLECTION =====
+    match /clients/{clientId} {
+      allow read: if request.auth != null && (
         request.auth.uid == resource.data.userId ||
-        // Admins can access everything
-        isAdminUser() ||
-        // Allow creation of new documents
-        request.auth.uid == request.resource.data.userId
+        isAdminUser()
+      );
+      
+      allow create: if request.auth != null && (
+        request.auth.uid == request.resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+    }
+    
+    // ===== INVOICES COLLECTION =====
+    match /invoices/{invoiceId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow create: if request.auth != null && (
+        request.auth.uid == request.resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+    }
+    
+    // ===== USERS PROFILE COLLECTION =====
+    match /userProfiles/{userId} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid == userId ||
+        isAdminUser()
+      );
+    }
+    
+    // ===== SETTINGS COLLECTION =====
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+    }
+    
+    // ===== REPORTS COLLECTION =====
+    match /reports/{reportId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        isAdminUser()
+      );
+      
+      allow write: if isAdminUser();
+    }
+    
+    // ===== GENERAL CATCH-ALL RULE WITH RESTRICTIONS =====
+    // This provides security for any new collections you might add
+    match /{document=**} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isAdminUser()
+      );
+      
+      allow write: if request.auth != null && (
+        (request.resource.data.userId == request.auth.uid && 
+         (!resource.exists || resource.data.userId == request.auth.uid)) ||
+        isAdminUser()
       );
     }
 
-    // ===== CORE FUNCTIONS =====
+    // ===== HELPER FUNCTIONS =====
     function isAdminUser() {
       return request.auth != null && 
         (isSuperAdmin(request.auth.token.email) || 
-         exists(/databases/$(database)/documents/adminUsers/$(request.auth.token.email)));
+         exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)));
     }
     
     function isSuperAdmin(email) {

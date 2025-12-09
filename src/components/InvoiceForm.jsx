@@ -15,6 +15,14 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    paymentDate: new Date().toISOString().split('T')[0],
+    paymentMethod: 'bank_transfer',
+    transactionId: '',
+    notes: ''
+  });
+
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -23,20 +31,32 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
     date: new Date().toISOString().split('T')[0],
     dueDate: '',
     items: [{ description: '', quantity: 1, price: 0 }],
-    notes: ''
+    notes: '',
+    status: 'draft',
+    paymentHistory: []
   });
 
   useEffect(() => {
     if (invoice) {
-      setFormData(invoice);
+      setFormData({
+        ...invoice,
+        date: invoice.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        dueDate: invoice.dueDate?.split('T')[0] || ''
+      });
     } else {
-      // Generate invoice number
       setFormData(prev => ({
         ...prev,
-        invoiceNumber: `INV-${Date.now()}`
+        invoiceNumber: generateInvoiceNumber(),
+        status: 'draft'
       }));
     }
   }, [invoice]);
+
+  const generateInvoiceNumber = () => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `INV-${timestamp}-${random}`;
+  };
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
@@ -65,36 +85,68 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
     }, 0);
   };
 
-  // Check if user can create more invoices
   const checkInvoiceLimit = async () => {
     try {
-      setError('');
       const checkInvoiceCreation = httpsCallable(functions, 'checkInvoiceCreation');
       const result = await checkInvoiceCreation();
 
-      console.log('✅ Invoice limit check result:', result.data);
-
       if (!result.data.canCreate) {
-        setError(`You have reached your monthly invoice limit (${result.data.limit}). Please upgrade your plan to create more invoices.`);
-        return false;
+        throw new Error(`You have reached your monthly invoice limit (${result.data.limit}). Please upgrade your plan to create more invoices.`);
       }
 
       return true;
     } catch (error) {
-      console.error('❌ Error checking invoice limit:', error);
-      // Don't block invoice creation if the check fails - use as warning only
-      console.log('Invoice limit check failed, but allowing creation:', error.message);
-      return true; // Allow creation as fallback
+      console.error('Error checking invoice limit:', error);
+      throw error;
     }
   };
+
+  const handleMarkAsPaid = () => {
+    setPaymentData({
+      paymentDate: new Date().toISOString().split('T')[0],
+      paymentMethod: 'bank_transfer',
+      transactionId: '',
+      notes: ''
+    });
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSubmit = async () => {
+    try {
+      const newPayment = {
+        ...paymentData,
+        amount: calculateTotal(),
+        date: new Date().toISOString()
+      };
+
+      const updatedInvoice = {
+        ...formData,
+        status: 'paid',
+        paidDate: paymentData.paymentDate,
+        paymentMethod: paymentData.paymentMethod,
+        transactionId: paymentData.transactionId,
+        paymentHistory: [...(formData.paymentHistory || []), newPayment]
+      };
+
+      await updateDoc(doc(db, 'invoices', invoice.id), updatedInvoice);
+      setShowPaymentModal(false);
+      onSave();
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error);
+      alert('Failed to mark invoice as paid: ' + error.message);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Only check invoice limit when creating new invoices, not when editing
+      // Only check invoice limit when creating new invoices
       if (!invoice) {
+        setCheckingLimit(true);
         await checkInvoiceLimit();
+        setCheckingLimit(false);
       }
 
       const invoiceData = {
@@ -121,21 +173,51 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
     }
   };
 
-  // Check user's invoice limit when component mounts (for new invoices)
-  useEffect(() => {
-    if (!invoice) {
-      checkInvoiceLimit().catch(error => {
-        // Silently handle the error - we'll show it when they try to submit
-        console.log('Invoice limit check:', error.message);
-      });
-    }
-  }, [invoice]);
+  const getStatusBadge = (status) => {
+    const statusClasses = {
+      draft: 'status-draft',
+      sent: 'status-sent',
+      paid: 'status-paid',
+      overdue: 'status-overdue'
+    };
+    
+    return <span className={`status-badge ${statusClasses[status] || ''}`}>{status}</span>;
+  };
 
   return (
     <div className="invoice-form-container">
       <form onSubmit={handleSubmit} className="invoice-form">
-        <div className="form-section">
+        <div className="form-header">
           <h2>{invoice ? 'Edit Invoice' : 'Create New Invoice'}</h2>
+          {invoice && (
+            <div className="invoice-status-section">
+              <div className="status-info">
+                <span>Current Status:</span>
+                {getStatusBadge(formData.status)}
+              </div>
+              {formData.status !== 'paid' && (
+                <button
+                  type="button"
+                  onClick={handleMarkAsPaid}
+                  className="mark-paid-btn"
+                >
+                  Mark as Paid
+                </button>
+              )}
+              {formData.paidDate && (
+                <div className="paid-info">
+                  <span>Paid on: {new Date(formData.paidDate).toLocaleDateString()}</span>
+                  {formData.paymentMethod && (
+                    <span>via {formData.paymentMethod.replace('_', ' ').toUpperCase()}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="form-section">
+          <h3>Invoice Details</h3>
           {!invoice && (
             <div className="limit-info">
               <p>
@@ -155,7 +237,7 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 value={formData.invoiceNumber}
                 onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
                 required
-                disabled={invoice} // Prevent changing invoice number when editing
+                disabled={invoice}
               />
             </div>
 
@@ -177,6 +259,20 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label>Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                disabled={invoice && formData.status === 'paid'}
+              >
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="overdue">Overdue</option>
+                <option value="paid" disabled={!invoice}>Paid (use Mark as Paid button)</option>
+              </select>
             </div>
           </div>
         </div>
@@ -274,7 +370,14 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
           </button>
 
           <div className="total-section">
-            <strong>Total: ${calculateTotal().toFixed(2)}</strong>
+            <div className="total-row">
+              <span>Subtotal:</span>
+              <span>${calculateTotal().toFixed(2)}</span>
+            </div>
+            <div className="total-row grand-total">
+              <strong>Total:</strong>
+              <strong>${calculateTotal().toFixed(2)}</strong>
+            </div>
           </div>
         </div>
 
@@ -310,6 +413,94 @@ const InvoiceForm = ({ invoice, onSave, onCancel }) => {
           </button>
         </div>
       </form>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="payment-modal-overlay">
+          <div className="payment-modal">
+            <div className="modal-header">
+              <h3>Mark Invoice as Paid</h3>
+              <button
+                className="close-modal"
+                onClick={() => setShowPaymentModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="payment-summary">
+                <p>Invoice: <strong>{formData.invoiceNumber}</strong></p>
+                <p>Client: <strong>{formData.clientName}</strong></p>
+                <p>Amount: <strong>${calculateTotal().toFixed(2)}</strong></p>
+              </div>
+
+              <div className="form-group">
+                <label>Payment Date</label>
+                <input
+                  type="date"
+                  value={paymentData.paymentDate}
+                  onChange={(e) => setPaymentData({...paymentData, paymentDate: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Payment Method</label>
+                <select
+                  value={paymentData.paymentMethod}
+                  onChange={(e) => setPaymentData({...paymentData, paymentMethod: e.target.value})}
+                  required
+                >
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="paypal">PayPal</option>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Transaction/Reference ID</label>
+                <input
+                  type="text"
+                  value={paymentData.transactionId}
+                  onChange={(e) => setPaymentData({...paymentData, transactionId: e.target.value})}
+                  placeholder="Optional"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Payment Notes</label>
+                <textarea
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
+                  rows="2"
+                  placeholder="Additional payment details..."
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePaymentSubmit}
+                  className="confirm-btn"
+                >
+                  Confirm Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './StripePayment.css';
+import '../styles/StripePayment.css';
 
 const StripePayment = () => {
   const [selectedPlan, setSelectedPlan] = useState('basic');
